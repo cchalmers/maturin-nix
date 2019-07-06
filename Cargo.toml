@@ -1,0 +1,11 @@
+[package]
+name = "pyo3-pack-nix"
+version = "0.1.0"
+authors = ["Christopher Chalmers <c.chalmers@me.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+pyo3-pack = "0.7.0-beta.2"
+structopt = "0.2"

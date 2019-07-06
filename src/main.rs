@@ -1,0 +1,121 @@
+use pyo3_pack::*;
+use std::path::PathBuf;
+use structopt::clap::AppSettings::ColoredHelp;
+use structopt::StructOpt;
+
+/// Build python wheels
+#[derive(Debug, StructOpt)]
+struct Info {
+    /// The name of the python module to create. This module name must match that of the library in
+    /// the wheel or the wheel will fail when trying to import.
+    #[structopt(long = "module-name")]
+    module_name: String,
+
+    /// Path to the Cargo.toml file. This file is used to provide the metadata for the python
+    /// wheel. Be aware that if this points to readme file, that readme file should also be in the
+    /// same folder.
+    #[structopt(long = "manifest-path")]
+    manifest_path: PathBuf,
+}
+
+impl Info {
+    fn meta21(&self) -> Metadata21 {
+        let cargo_toml = CargoToml::from_path(&self.manifest_path).expect("manifest_file");
+
+        // The manifest directory is only used when the target toml file points to a readme.
+        let manifest_dir = self.manifest_path.parent().unwrap();
+
+        Metadata21::from_cargo_toml(&cargo_toml, &manifest_dir).expect("metadata21")
+    }
+}
+
+/// Build python wheels
+#[derive(Debug, StructOpt)]
+#[structopt(
+    name = "pyo3-nix",
+    about = "Tool for building pyo3 wheels inside nix",
+    raw(setting = "ColoredHelp")
+)]
+
+enum Opt {
+    #[structopt(name = "info")]
+    /// Prints out the names of wheels that will be generated. The name of wheel is determined by
+    /// the package name, package version, python version and platform compiled for.
+    Info {
+        #[structopt(flatten)]
+        info: Info,
+    },
+
+    #[structopt(name = "build")]
+    /// Build the crate into wheels
+    Build {
+        #[structopt(flatten)]
+        info: Info,
+
+        /// The path to the rustc artifact for a library. This library must have a crate-type of
+        /// "cdylib". On macOS the library should also be compiled with
+        ///  "-C link-arg=-undefined -C link-arg=dynamic_lookup";
+        #[structopt(long = "artifact-path")]
+        artifact_path: PathBuf,
+
+        /// The directory to store the output wheel.
+        #[structopt(long = "output-dir")]
+        output_dir: PathBuf,
+    },
+}
+
+fn main() {
+    let opt = Opt::from_args();
+
+    let target = Target::current();
+    let python_interpreters = PythonInterpreter::find_all(&target).expect("python_interpreter");
+
+    // manylinux basically says that there should be a bunch of standard libraries in standard
+    // places. This doesn't play nicely with nix so we don't use it.
+    let manylinux = Manylinux::Off;
+
+    match opt {
+        Opt::Info { info } => {
+            let metadata21 = info.meta21();
+
+            for py in python_interpreters {
+                let tag = py.get_tag(&manylinux);
+                let wheel_path = format!(
+                    "{}-{}-{}.whl",
+                    metadata21.get_distribution_escaped(),
+                    metadata21.get_version_escaped(),
+                    tag
+                );
+                println!("{}", wheel_path);
+            }
+        }
+        Opt::Build {
+            info,
+            artifact_path,
+            output_dir,
+        } => {
+            for python_interpreter in python_interpreters {
+                let tag = python_interpreter.get_tag(&manylinux);
+
+                let mut writer = WheelWriter::new(
+                    &tag,
+                    &output_dir,
+                    &info.meta21(),
+                    &std::collections::HashMap::default(),
+                    &[tag.clone()],
+                )
+                .expect("writer");
+
+                let so_filename = python_interpreter.get_library_name(&info.module_name);
+
+                writer
+                    .add_file(so_filename, &artifact_path)
+                    .expect("add files");
+
+                let wheel_path = writer.finish().expect("writer finish");
+
+                println!("made the wheel at {}", wheel_path.display());
+            }
+        }
+    }
+}
