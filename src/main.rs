@@ -1,6 +1,6 @@
-use pyo3_pack::*;
+use maturin::*;
 use std::path::PathBuf;
-use structopt::clap::AppSettings::ColoredHelp;
+use structopt::clap::AppSettings;
 use structopt::StructOpt;
 
 /// Build python wheels
@@ -34,7 +34,7 @@ impl Info {
 #[structopt(
     name = "pyo3-nix",
     about = "Tool for building pyo3 wheels inside nix",
-    raw(setting = "ColoredHelp")
+    global_settings(&[AppSettings::ColoredHelp, AppSettings::VersionlessSubcommands])
 )]
 
 enum Opt {
@@ -68,7 +68,9 @@ fn main() {
     let opt = Opt::from_args();
 
     let target = Target::current();
-    let python_interpreters = PythonInterpreter::find_all(&target).expect("python_interpreter");
+    let bridge = BridgeModel::Cffi;
+    let python_interpreters =
+        PythonInterpreter::find_all(&target, &bridge).expect("python_interpreter");
 
     // manylinux basically says that there should be a bunch of standard libraries in standard
     // places. This doesn't play nicely with nix so we don't use it.
@@ -114,7 +116,7 @@ fn main() {
 
                 let wheel_path = writer.finish().expect("writer finish");
 
-                println!("made the wheel at {}", wheel_path.display());
+                eprintln!("📦 successfuly created wheel {}", wheel_path.display());
             }
         }
     }
