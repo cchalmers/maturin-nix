@@ -33,7 +33,7 @@ impl Info {
 /// Build python wheels
 #[derive(Debug, StructOpt)]
 #[structopt(
-    name = "pyo3-nix",
+    name = "maturin-nix",
     about = "Tool for building pyo3 wheels inside nix",
     global_settings(&[AppSettings::ColoredHelp, AppSettings::VersionlessSubcommands])
 )]
