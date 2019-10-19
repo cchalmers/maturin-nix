@@ -4,6 +4,10 @@ version = "0.1.0"
 authors = ["Christopher Chalmers <c.chalmers@me.com>"]
 edition = "2018"
 
+exclude = [
+  "examples/*",
+]
+
 [dependencies]
 maturin = "0.7.6"
 structopt = "0.3"
