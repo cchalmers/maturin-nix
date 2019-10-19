@@ -1,5 +1,6 @@
 use maturin::*;
 use std::path::PathBuf;
+use std::process;
 use structopt::clap::AppSettings;
 use structopt::StructOpt;
 
@@ -38,12 +39,16 @@ impl Info {
 )]
 
 enum Opt {
-    #[structopt(name = "info")]
+    #[structopt(name = "wheel-names")]
     /// Prints out the names of wheels that will be generated. The name of wheel is determined by
     /// the package name, package version, python version and platform compiled for.
-    Info {
+    WheelNames {
         #[structopt(flatten)]
         info: Info,
+
+        /// Expect a single python version to be available and will error if not.
+        #[structopt(long)]
+        expect_one: bool,
     },
 
     #[structopt(name = "build")]
@@ -55,11 +60,11 @@ enum Opt {
         /// The path to the rustc artifact for a library. This library must have a crate-type of
         /// "cdylib". On macOS the library should also be compiled with
         ///  "-C link-arg=-undefined -C link-arg=dynamic_lookup";
-        #[structopt(long = "artifact-path")]
+        #[structopt(long)]
         artifact_path: PathBuf,
 
         /// The directory to store the output wheel.
-        #[structopt(long = "output-dir")]
+        #[structopt(long)]
         output_dir: PathBuf,
     },
 }
@@ -77,8 +82,22 @@ fn main() {
     let manylinux = Manylinux::Off;
 
     match opt {
-        Opt::Info { info } => {
+        Opt::WheelNames { info, expect_one } => {
             let metadata21 = info.meta21();
+
+            if expect_one && python_interpreters.len() != 1 {
+                let err = ansi_term::Color::Red.bold().paint("error:");
+                if python_interpreters.len() == 0 {
+                    eprintln!("{} no python versions found", err);
+                    process::exit(1);
+                }
+                eprintln!("{} multiple python versions found:", err);
+
+                for py in &python_interpreters {
+                    eprintln!("  {}", py);
+                }
+                process::exit(1);
+            }
 
             for py in python_interpreters {
                 let tag = py.get_tag(&manylinux);
