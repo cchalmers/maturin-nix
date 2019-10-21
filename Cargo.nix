@@ -116,6 +116,28 @@ rec {
         features = {
         };
       };
+    "ansi_term 0.12.1 (registry+https://github.com/rust-lang/crates.io-index)"
+      = rec {
+        crateName = "ansi_term";
+        version = "0.12.1";
+        edition = "2015";
+        sha256 = "1ggb7gsm8qgav5mqsmwrx64rfk2548v32id92qsag48xwhh34m9i";
+        authors = [
+          "ogham@bsago.me"
+          "Ryan Scheel (Havvy) <ryan.havvy@gmail.com>"
+          "Josh Triplett <josh@joshtriplett.org>"
+        ];
+        dependencies = {
+          "winapi" = {
+            packageId = "winapi 0.3.7 (registry+https://github.com/rust-lang/crates.io-index)";
+            target = (target."os" == "windows");
+            features = [ "consoleapi" "errhandlingapi" "fileapi" "handleapi" "processenv" ];
+          };
+        };
+        features = {
+          "derive_serde_style" = [ "serde" ];
+        };
+      };
     "arrayvec 0.4.10 (registry+https://github.com/rust-lang/crates.io-index)"
       = rec {
         crateName = "arrayvec";
@@ -1651,7 +1673,9 @@ rec {
           "Christopher Chalmers <c.chalmers@me.com>"
         ];
         dependencies = {
+          "ansi_term" = "ansi_term 0.12.1 (registry+https://github.com/rust-lang/crates.io-index)";
           "maturin" = "maturin 0.7.6 (registry+https://github.com/rust-lang/crates.io-index)";
+          "rand" = "rand 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)";
           "structopt" = "structopt 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)";
         };
         features = {
