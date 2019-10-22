@@ -9,7 +9,6 @@ exclude = [
 ]
 
 [dependencies]
-maturin = "0.7.6"
+maturin = { path = "../pyo3-pack" }
 structopt = "0.3"
 ansi_term = "0.12"
-rand = "0.7"

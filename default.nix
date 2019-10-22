@@ -2,4 +2,10 @@
 }:
 
 let nixCrate = nixpkgs.callPackage ./Cargo.nix { pkgs = nixpkgs; };
-in nixCrate.rootCrate.build
+    crateOverrides = nixpkgs.defaultCrateOverrides // {
+      maturin-nix = old: {
+        buildInputs = old.buildInputs or [] ++ [nixpkgs.darwin.Security];
+      };
+    };
+
+in nixCrate.rootCrate.build.override { inherit crateOverrides; }
