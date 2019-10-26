@@ -87,7 +87,7 @@ fn main() {
 
             if expect_one && python_interpreters.len() != 1 {
                 let err = ansi_term::Color::Red.bold().paint("error:");
-                if python_interpreters.len() == 0 {
+                if python_interpreters.is_empty() {
                     eprintln!("{} no python versions found", err);
                     process::exit(1);
                 }
