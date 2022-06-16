@@ -54,13 +54,13 @@ in rustPlatform.buildRustPackage rec {
   nativeBuildInputs = [ pkgconfig ];
 
   buildInputs = [ gmp openssl ]
-    ++ stdenv.lib.optional stdenv.isDarwin Security
-    ++ stdenv.lib.optional stdenv.isLinux dbus;
+    ++ lib.optional stdenv.isDarwin Security
+    ++ lib.optional stdenv.isLinux dbus;
 
   # Requires network access, fails in sandbox.
   doCheck = false;
 
-  meta = with stdenv.lib; {
+  meta = with lib; {
     description = "Build and publish crates with pyo3 bindings as python packages in nix";
     homepage = https://github.com/cchalmers/maturin-nix;
     license = licenses.mit;
