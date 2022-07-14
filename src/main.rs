@@ -1,21 +1,22 @@
 use maturin::*;
 use std::path::PathBuf;
 use std::process;
-use structopt::clap::AppSettings;
-use structopt::StructOpt;
+// use structopt::clap::AppSettings;
+// use structopt::StructOpt;
+use clap::Parser;
 
 /// Build python wheels
-#[derive(Debug, StructOpt)]
+#[derive(Debug, Parser)]
 struct Info {
     /// The name of the python module to create. This module name must match that of the library in
     /// the wheel or the wheel will fail when trying to import.
-    #[structopt(long = "module-name")]
+    #[clap(long)]
     module_name: String,
 
     /// Path to the Cargo.toml file. This file is used to provide the metadata for the python
     /// wheel. Be aware that if this points to readme file, that readme file should also be in the
     /// same folder.
-    #[structopt(long = "manifest-path")]
+    #[clap(long)]
     manifest_path: PathBuf,
 }
 
@@ -31,11 +32,11 @@ impl Info {
 }
 
 /// Build python wheels
-#[derive(Debug, StructOpt)]
-#[structopt(
-    name = "pyo3-nix",
+#[derive(Debug, Parser)]
+#[clap(
+    name = "maturin-nix",
     about = "Tool for building pyo3 wheels inside nix",
-    global_settings(&[AppSettings::ColoredHelp, AppSettings::VersionlessSubcommands])
+    // global_settings(&[AppSettings::ColoredHelp, AppSettings::VersionlessSubcommands])
 )]
 
 enum Opt {
@@ -69,17 +70,13 @@ enum Opt {
     },
 }
 
-fn main() {
+fn main() -> anyhow::Result<()> {
     let opt = Opt::from_args();
 
-    let target = Target::current();
+    let target = Target::from_target_triple(None)?;
     let bridge = BridgeModel::Cffi;
     let python_interpreters =
-        PythonInterpreter::find_all(&target, &bridge).expect("python_interpreter");
-
-    // manylinux basically says that there should be a bunch of standard libraries in standard
-    // places. This doesn't play nicely with nix so we don't use it.
-    let manylinux = Manylinux::Off;
+        PythonInterpreter::find_all(&target, &bridge, None)?;
 
     match opt {
         Opt::WheelNames { info, expect_one } => {
@@ -100,7 +97,7 @@ fn main() {
             }
 
             for py in python_interpreters {
-                let tag = py.get_tag(&manylinux);
+                let tag = py.get_tag(&target, &[maturin::PlatformTag::Linux], false)?;
                 let wheel_path = format!(
                     "{}-{}-{}.whl",
                     metadata21.get_distribution_escaped(),
@@ -115,28 +112,26 @@ fn main() {
             artifact_path,
             output_dir,
         } => {
-            for python_interpreter in python_interpreters {
-                let tag = python_interpreter.get_tag(&manylinux);
+            for py in python_interpreters {
+                let tag = py.get_tag(&target, &[maturin::PlatformTag::Linux], false)?;
 
                 let mut writer = WheelWriter::new(
                     &tag,
                     &output_dir,
                     &info.meta21(),
-                    &std::collections::HashMap::default(),
                     &[tag.clone()],
-                )
-                .expect("writer");
+                )?;
 
-                let so_filename = python_interpreter.get_library_name(&info.module_name);
+                let so_filename = py.get_library_name(&info.module_name);
 
                 writer
-                    .add_file(so_filename, &artifact_path)
-                    .expect("add files");
+                    .add_file(so_filename, &artifact_path)?;
 
-                let wheel_path = writer.finish().expect("writer finish");
+                let wheel_path = writer.finish()?;
 
                 eprintln!("📦 successfuly created wheel {}", wheel_path.display());
             }
         }
     }
+    Ok(())
 }

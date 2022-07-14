@@ -9,6 +9,7 @@ exclude = [
 ]
 
 [dependencies]
-maturin = { path = "../pyo3-pack" }
-structopt = "0.3"
+anyhow = "1.0"
+maturin = "0.13"
+clap = { version = "3.2.12", features = [ "derive" ] }
 ansi_term = "0.12"
