@@ -1,11 +1,14 @@
-{ nixpkgs ? import <unstable> {}
+{ nixpkgs ? import <nixpkgs> {}
 }:
 
-let nixCrate = nixpkgs.callPackage ./Cargo.nix { pkgs = nixpkgs; };
+let nixCrate = import ./Cargo.nix {
+      pkgs = nixpkgs;
+      defaultCrateOverrides = crateOverrides;
+    };
     crateOverrides = nixpkgs.defaultCrateOverrides // {
       maturin-nix = old: {
         buildInputs = old.buildInputs or [] ++ [nixpkgs.darwin.Security];
       };
     };
 
-in nixCrate.rootCrate.build.override { inherit crateOverrides; }
+in nixCrate.rootCrate.build
