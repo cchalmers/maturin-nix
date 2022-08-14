@@ -1,0 +1,11 @@
+[workspace]
+
+members = [
+  "printer",
+  "mm",
+  "mmpy",
+]
+
+[profile.release]
+lto = false
+panic = "abort"
