@@ -1,7 +1,7 @@
 { nixpkgs ? import <nixpkgs> {}
 }:
 
-let nixCrate = import ./Cargo.nix {
+let nixCrate = import maturin-nix/Cargo.nix {
       pkgs = nixpkgs;
       defaultCrateOverrides = crateOverrides;
     };
