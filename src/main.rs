@@ -12,6 +12,12 @@ struct Info {
     #[structopt(long = "module-name")]
     module_name: String,
 
+    /// Don't tag the .so module with ABI and platform information. These tags will be in the wheel
+    /// anyway, and maturin's tags are more restrictive than they need to be (e.g. does not tag
+    /// with abi3).
+    #[structopt(long)]
+    no_module_tag: bool,
+
     /// Path to the Cargo.toml file. This file is used to provide the metadata for the python
     /// wheel. Be aware that if this points to readme file, that readme file should also be in the
     /// same folder.
@@ -127,7 +133,12 @@ fn main() {
                 )
                 .expect("writer");
 
-                let so_filename = python_interpreter.get_library_name(&info.module_name);
+                let so_filename = if info.no_module_tag {
+                    // Assumes Unix
+                    format!("{}.so", info.module_name)
+                } else {
+                    python_interpreter.get_library_name(&info.module_name)
+                };
 
                 writer
                     .add_file(so_filename, &artifact_path)
