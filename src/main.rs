@@ -80,8 +80,13 @@ fn main() {
 
     let target = Target::current();
     let bridge = BridgeModel::Cffi;
+    println!("Looking for interpreters...");
     let python_interpreters =
         PythonInterpreter::find_all(&target, &bridge).expect("python_interpreter");
+
+    for python_interpreter in &python_interpreters {
+        println!("Found {:?}", python_interpreter);
+    }
 
     // manylinux basically says that there should be a bunch of standard libraries in standard
     // places. This doesn't play nicely with nix so we don't use it.
