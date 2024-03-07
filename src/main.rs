@@ -1,7 +1,6 @@
 use ignore::overrides::Override;
 use maturin::*;
 use std::path::PathBuf;
-use std::process;
 use structopt::clap::AppSettings;
 use structopt::StructOpt;
 
@@ -50,18 +49,6 @@ impl Info {
 )]
 
 enum Opt {
-    #[structopt(name = "wheel-names")]
-    /// Prints out the names of wheels that will be generated. The name of wheel is determined by
-    /// the package name, package version, python version and platform compiled for.
-    WheelNames {
-        #[structopt(flatten)]
-        info: Info,
-
-        /// Expect a single python version to be available and will error if not.
-        #[structopt(long)]
-        expect_one: bool,
-    },
-
     #[structopt(name = "build")]
     /// Build the crate into wheels
     Build {
@@ -103,34 +90,6 @@ fn main() {
     };
 
     match opt {
-        Opt::WheelNames { info, expect_one } => {
-            let metadata21 = info.meta21();
-
-            if expect_one && python_interpreters.len() != 1 {
-                let err = ansi_term::Color::Red.bold().paint("error:");
-                if python_interpreters.is_empty() {
-                    eprintln!("{} no python versions found", err);
-                    process::exit(1);
-                }
-                eprintln!("{} multiple python versions found:", err);
-
-                for py in &python_interpreters {
-                    eprintln!("  {}", py);
-                }
-                process::exit(1);
-            }
-
-            for py in python_interpreters {
-                let tag = get_wheel_tag(&py);
-                let wheel_path = format!(
-                    "{}-{}-{}.whl",
-                    metadata21.get_distribution_escaped(),
-                    metadata21.get_version_escaped(),
-                    tag
-                );
-                println!("{}", wheel_path);
-            }
-        }
         Opt::Build {
             info,
             artifact_path,
