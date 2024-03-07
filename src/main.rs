@@ -1,3 +1,4 @@
+use ignore::overrides::Override;
 use maturin::*;
 use std::path::PathBuf;
 use std::process;
@@ -26,13 +27,17 @@ struct Info {
 }
 
 impl Info {
-    fn meta21(&self) -> Metadata21 {
-        let cargo_toml = CargoToml::from_path(&self.manifest_path).expect("manifest_file");
+    fn meta21(&self) -> Metadata23 {
+        let metadata = self.cargo_metadata();
 
-        // The manifest directory is only used when the target toml file points to a readme.
-        let manifest_dir = self.manifest_path.parent().unwrap();
+        Metadata23::from_cargo_toml(&self.manifest_path, &metadata).expect("metadata21")
+    }
 
-        Metadata21::from_cargo_toml(&cargo_toml, &manifest_dir).expect("metadata21")
+    fn cargo_metadata(&self) -> cargo_metadata::Metadata {
+        cargo_metadata::MetadataCommand::new()
+            .manifest_path(&self.manifest_path)
+            .exec()
+            .unwrap()
     }
 }
 
@@ -78,14 +83,20 @@ enum Opt {
 fn main() {
     let opt = Opt::from_args();
 
-    let target = Target::current();
+    let target = Target::from_target_triple(None).expect("target triple");
     let bridge = BridgeModel::Cffi;
     let python_interpreters =
-        PythonInterpreter::find_all(&target, &bridge).expect("python_interpreter");
+        PythonInterpreter::find_all(&target, &bridge, None).expect("python_interpreter");
 
-    // manylinux basically says that there should be a bunch of standard libraries in standard
-    // places. This doesn't play nicely with nix so we don't use it.
-    let manylinux = Manylinux::Off;
+    let get_wheel_tag = |python_interpreter: &PythonInterpreter| {
+        format!(
+            "cp{major}{minor}-cp{major}{minor}-{os}_{arch}",
+            major = python_interpreter.major,
+            minor = python_interpreter.minor,
+            os = target.get_python_os(),
+            arch = target.get_python_arch(),
+        )
+    };
 
     match opt {
         Opt::WheelNames { info, expect_one } => {
@@ -106,7 +117,7 @@ fn main() {
             }
 
             for py in python_interpreters {
-                let tag = py.get_tag(&manylinux);
+                let tag = get_wheel_tag(&py);
                 let wheel_path = format!(
                     "{}-{}-{}.whl",
                     metadata21.get_distribution_escaped(),
@@ -122,14 +133,14 @@ fn main() {
             output_dir,
         } => {
             for python_interpreter in python_interpreters {
-                let tag = python_interpreter.get_tag(&manylinux);
+                let tag = get_wheel_tag(&python_interpreter);
 
                 let mut writer = WheelWriter::new(
                     &tag,
                     &output_dir,
                     &info.meta21(),
-                    &std::collections::HashMap::default(),
                     &[tag.clone()],
+                    Override::empty(),
                 )
                 .expect("writer");
 
