@@ -84,11 +84,15 @@ fn main() {
     let opt = Opt::from_args();
 
     let target = Target::from_target_triple(None).expect("target triple");
+    // Should probably be `Bindings` or `BindingsAbi3` but this works too.
     let bridge = BridgeModel::Cffi;
     let python_interpreters =
         PythonInterpreter::find_all(&target, &bridge, None).expect("python_interpreter");
 
     let get_wheel_tag = |python_interpreter: &PythonInterpreter| {
+        // This tag can be made more precise and accurate by using the abi and platform from the
+        // Cargo manifest instead of the Python interpreter, but the wheel name is easy to change
+        // later anyway.
         format!(
             "cp{major}{minor}-cp{major}{minor}-{os}_{arch}",
             major = python_interpreter.major,
