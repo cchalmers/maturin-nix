@@ -116,6 +116,10 @@ fn main() {
                 let python_interpreters =
                     PythonInterpreter::find_all(&target, &bridge).expect("python_interpreter");
 
+                if python_interpreters.is_empty() {
+                    panic!("Couldn't find any recognised Python interpreters")
+                }
+
                 for py in python_interpreters {
                     println!("Found {:?}", py);
                     build_wheel(&Some(py));
