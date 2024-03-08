@@ -105,7 +105,7 @@ fn main() {
 
                 let wheel_path = writer.finish().expect("writer finish");
 
-                eprintln!("📦 successfuly created wheel {}", wheel_path.display());
+                eprintln!("📦 successfully created wheel {}", wheel_path.display());
             };
 
             if info.abi3 {
