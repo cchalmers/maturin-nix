@@ -76,7 +76,8 @@ fn main() {
                     // places. This doesn't play nicely with nix so we don't use it.
                     py.get_tag(&Manylinux::Off)
                 } else {
-                    let python_tag = "cp3";
+                    // Oldest supported (listed in docs) by pyo3
+                    let python_tag = "cp37";
                     let abi_tag = "abi3";
                     let platform_tag = "linux_x86_64";
                     format!("{}-{}-{}", python_tag, abi_tag, platform_tag)
