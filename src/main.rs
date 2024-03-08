@@ -1,6 +1,5 @@
 use maturin::*;
 use std::path::PathBuf;
-use std::process;
 use structopt::clap::AppSettings;
 use structopt::StructOpt;
 
@@ -12,11 +11,10 @@ struct Info {
     #[structopt(long = "module-name")]
     module_name: String,
 
-    /// Don't tag the .so module with ABI and platform information. These tags will be in the wheel
-    /// anyway, and maturin's tags are more restrictive than they need to be (e.g. does not tag
-    /// with abi3).
+    /// Assume the module is abi3 compatible. This tags the wheel with an abi3 tag, and also
+    /// doesn't bother to tag the .so inside the wheel with any tag.
     #[structopt(long)]
-    no_module_tag: bool,
+    abi3: bool,
 
     /// Path to the Cargo.toml file. This file is used to provide the metadata for the python
     /// wheel. Be aware that if this points to readme file, that readme file should also be in the
@@ -45,18 +43,6 @@ impl Info {
 )]
 
 enum Opt {
-    #[structopt(name = "wheel-names")]
-    /// Prints out the names of wheels that will be generated. The name of wheel is determined by
-    /// the package name, package version, python version and platform compiled for.
-    WheelNames {
-        #[structopt(flatten)]
-        info: Info,
-
-        /// Expect a single python version to be available and will error if not.
-        #[structopt(long)]
-        expect_one: bool,
-    },
-
     #[structopt(name = "build")]
     /// Build the crate into wheels
     Build {
@@ -78,56 +64,23 @@ enum Opt {
 fn main() {
     let opt = Opt::from_args();
 
-    let target = Target::current();
-    let bridge = BridgeModel::Cffi;
-    println!("Looking for interpreters...");
-    let python_interpreters =
-        PythonInterpreter::find_all(&target, &bridge).expect("python_interpreter");
-
-    for python_interpreter in &python_interpreters {
-        println!("Found {:?}", python_interpreter);
-    }
-
-    // manylinux basically says that there should be a bunch of standard libraries in standard
-    // places. This doesn't play nicely with nix so we don't use it.
-    let manylinux = Manylinux::Off;
-
     match opt {
-        Opt::WheelNames { info, expect_one } => {
-            let metadata21 = info.meta21();
-
-            if expect_one && python_interpreters.len() != 1 {
-                let err = ansi_term::Color::Red.bold().paint("error:");
-                if python_interpreters.is_empty() {
-                    eprintln!("{} no python versions found", err);
-                    process::exit(1);
-                }
-                eprintln!("{} multiple python versions found:", err);
-
-                for py in &python_interpreters {
-                    eprintln!("  {}", py);
-                }
-                process::exit(1);
-            }
-
-            for py in python_interpreters {
-                let tag = py.get_tag(&manylinux);
-                let wheel_path = format!(
-                    "{}-{}-{}.whl",
-                    metadata21.get_distribution_escaped(),
-                    metadata21.get_version_escaped(),
-                    tag
-                );
-                println!("{}", wheel_path);
-            }
-        }
         Opt::Build {
             info,
             artifact_path,
             output_dir,
         } => {
-            for python_interpreter in python_interpreters {
-                let tag = python_interpreter.get_tag(&manylinux);
+            let build_wheel = |py: &Option<PythonInterpreter>| {
+                let tag = if let Some(py) = py {
+                    // manylinux basically says that there should be a bunch of standard libraries in standard
+                    // places. This doesn't play nicely with nix so we don't use it.
+                    py.get_tag(&Manylinux::Off)
+                } else {
+                    let python_tag = "cp3";
+                    let abi_tag = "abi3";
+                    let platform_tag = "linux_x86_64";
+                    format!("{}-{}-{}", python_tag, abi_tag, platform_tag)
+                };
 
                 let mut writer = WheelWriter::new(
                     &tag,
@@ -138,11 +91,11 @@ fn main() {
                 )
                 .expect("writer");
 
-                let so_filename = if info.no_module_tag {
+                let so_filename = if let Some(py) = py {
+                    py.get_library_name(&info.module_name)
+                } else {
                     // Assumes Unix
                     format!("{}.so", info.module_name)
-                } else {
-                    python_interpreter.get_library_name(&info.module_name)
                 };
 
                 writer
@@ -152,6 +105,21 @@ fn main() {
                 let wheel_path = writer.finish().expect("writer finish");
 
                 eprintln!("📦 successfuly created wheel {}", wheel_path.display());
+            };
+
+            if info.abi3 {
+                build_wheel(&None);
+            } else {
+                let target = Target::current();
+                let bridge = BridgeModel::Cffi;
+                println!("Looking for interpreters...");
+                let python_interpreters =
+                    PythonInterpreter::find_all(&target, &bridge).expect("python_interpreter");
+
+                for py in python_interpreters {
+                    println!("Found {:?}", py);
+                    build_wheel(&Some(py));
+                }
             }
         }
     }
