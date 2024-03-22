@@ -24,6 +24,7 @@
           maturin-nix = (rustPkgs.workspace.maturin-nix {});
           default = packages.maturin-nix;
         };
+        defaultPackage = packages.default;
       }
     );
 }
